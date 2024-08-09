@@ -2,8 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+#if !NET5_0_OR_GREATER
+using System.Collections.Generic;
+#endif
 using System.Diagnostics.CodeAnalysis;
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
 using System.Net;
+#endif
 using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
@@ -19,7 +24,7 @@ namespace SpaceWizards.HttpListener.WebSockets
         internal const int DefaultClientSendBufferSize = 16 * 1024;
 
         [SuppressMessage("Microsoft.Security", "CA5350", Justification = "SHA1 used only for hashing purposes, not for crypto.")]
-        internal static string GetSecWebSocketAcceptString(string? secWebSocketKey)
+        internal static string GetSecWebSocketAcceptString(string secWebSocketKey)
         {
             string acceptString = string.Concat(secWebSocketKey, HttpWebSocket.SecWebSocketKeyGuid);
             byte[] toHash = Encoding.UTF8.GetBytes(acceptString);
@@ -32,8 +37,8 @@ namespace SpaceWizards.HttpListener.WebSockets
         }
 
         // return value here signifies if a Sec-WebSocket-Protocol header should be returned by the server.
-        internal static bool ProcessWebSocketProtocolHeader(string? clientSecWebSocketProtocol,
-            string? subProtocol,
+        internal static bool ProcessWebSocketProtocolHeader(string clientSecWebSocketProtocol,
+            string subProtocol,
             out string acceptProtocol)
         {
             acceptProtocol = string.Empty;
@@ -62,7 +67,7 @@ namespace SpaceWizards.HttpListener.WebSockets
             // and the server has specified exactly one protocol
 #if NET5_0_OR_GREATER
             string[] requestProtocols = clientSecWebSocketProtocol.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-#else
+#elif NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_1_OR_GREATER
             string[] rawRequestProtocols = clientSecWebSocketProtocol.Split(',', StringSplitOptions.RemoveEmptyEntries);
             string[] requestProtocols = new string[rawRequestProtocols.Length];
 
@@ -70,6 +75,18 @@ namespace SpaceWizards.HttpListener.WebSockets
             {
                 requestProtocols[i] = rawRequestProtocols[i].Trim();
             }
+#else
+            string[] rawRequestProtocols = clientSecWebSocketProtocol.Split(',');
+            List<string> requestProtocolsList = new List<string>();
+            foreach (string protocol in rawRequestProtocols)
+            {
+                string trimmedProtocol = protocol.Trim();
+                if (!string.IsNullOrEmpty(trimmedProtocol))
+                {
+                    requestProtocolsList.Add(trimmedProtocol);
+                }
+            }
+            string[] requestProtocols = requestProtocolsList.ToArray();
 #endif
             acceptProtocol = subProtocol;
 
@@ -90,7 +107,7 @@ namespace SpaceWizards.HttpListener.WebSockets
                     subProtocol));
         }
 
-        internal static void ValidateOptions(string? subProtocol, int receiveBufferSize, int sendBufferSize, TimeSpan keepAliveInterval)
+        internal static void ValidateOptions(string subProtocol, int receiveBufferSize, int sendBufferSize, TimeSpan keepAliveInterval)
         {
             if (subProtocol != null)
             {
@@ -138,6 +155,7 @@ namespace SpaceWizards.HttpListener.WebSockets
         internal const int MinReceiveBufferSize = 256;
         internal const int MaxBufferSize = 64 * 1024;
 
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         private static void ValidateWebSocketHeaders(HttpListenerContext context)
         {
             if (!WebSocketsSupported)
@@ -152,7 +170,7 @@ namespace SpaceWizards.HttpListener.WebSockets
                     nameof(ValidateWebSocketHeaders),
                     HttpKnownHeaderNames.Connection,
                     HttpKnownHeaderNames.Upgrade,
-                    HttpWebSocket.WebSocketUpgradeToken,
+                    WebSocketUpgradeToken,
                     context.Request.Headers[HttpKnownHeaderNames.Upgrade]));
             }
 
@@ -196,5 +214,6 @@ namespace SpaceWizards.HttpListener.WebSockets
                     HttpKnownHeaderNames.SecWebSocketKey));
             }
         }
+#endif
     }
 }
