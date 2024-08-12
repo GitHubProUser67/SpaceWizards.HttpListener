@@ -126,9 +126,9 @@ namespace SpaceWizards.HttpListener
 
             _timer = new Timer(OnTimeout, null, Timeout.Infinite, Timeout.Infinite);
 #if NETCOREAPP2_1_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-            if (CertificateHelper.IsCertificateAuthority(_cert))
+            if (_sslStream != null && CertificateHelper.IsCertificateAuthority(_cert))
             {
-                _sslStream?.AuthenticateAsServer(new SslServerAuthenticationOptions
+                _sslStream.AuthenticateAsServer(new SslServerAuthenticationOptions
                 {
                     ClientCertificateRequired = false,
                     EnabledSslProtocols = GetSslProtocol,
