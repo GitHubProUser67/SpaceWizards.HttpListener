@@ -18,12 +18,14 @@ namespace SpaceWizards.HttpListener
 
         internal X509Certificate2? LoadCertificateAndKey(IPAddress addr, int port)
         {
+            X509Certificate2? certificate;
+
             lock (_internalLock)
             {
                 // Actually load the certificate
                 try
                 {
-                    if (_certificateCache != null && _certificateCache.TryGetValue(port, out X509Certificate2? certificate))
+                    if (_certificateCache != null && _certificateCache.TryGetValue(port, out certificate))
                     {
                         return certificate;
                     }
@@ -36,9 +38,21 @@ namespace SpaceWizards.HttpListener
                         string pass_file = Path.Combine(path, String.Format("{0}.password.txt", port));
                         if (File.Exists(pass_file))
                         {
-                            return new X509Certificate2(cert_file, File.ReadAllText(pass_file));
+                            certificate = new X509Certificate2(cert_file, File.ReadAllText(pass_file));
                         }
-                        return new X509Certificate2(cert_file);
+                        else
+                        {
+                            certificate = new X509Certificate2(cert_file);
+                        }
+
+#if !NETCOREAPP2_1_OR_GREATER || !NETSTANDARD2_1_OR_GREATER
+                        if (CertificateHelper.IsCertificateAuthority(certificate))
+                        {
+                            throw new NotSupportedException("The certificate store will only accept Authorities with .NETCORE 2.1 and up or .NETSTANDARD 2.1 and up");
+                        }
+#endif
+
+                        return certificate;
                     }
                 }
                 catch
