@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Security.Authentication.ExtendedProtection;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,6 +17,7 @@ namespace SpaceWizards.HttpListener
     public sealed unsafe partial class HttpListener : IDisposable
     {
         public delegate ExtendedProtectionPolicy ExtendedProtectionSelector(HttpListenerRequest request);
+        public bool wildcardCertificates = false;
 
         private readonly object _internalLock;
         private volatile State _state; // _state is set only within lock blocks, but often read outside locks.
@@ -30,6 +32,8 @@ namespace SpaceWizards.HttpListener
         private ExtendedProtectionSelector? _extendedProtectionSelectorDelegate;
         private string? _realm;
         private Dictionary<int, X509Certificate2>? _certificateCache;
+        private HashAlgorithmName _hashAlgorithm = HashAlgorithmName.SHA384;
+
 
         internal ICollection PrefixCollection => _uriPrefixes.Keys;
 
@@ -265,6 +269,12 @@ namespace SpaceWizards.HttpListener
 
         public void SetCertificate(int port, X509Certificate2 certificate)
         {
+#if !NETCOREAPP2_1_OR_GREATER || !NETSTANDARD2_1_OR_GREATER
+            if (CertificateHelper.IsCertificateAuthority(certificate))
+            {
+                throw new NotSupportedException("The certificate store will only accept Authorities with .NETCORE 2.1 and up or .NETSTANDARD 2.1 and up");
+            }
+#endif
             lock (_internalLock)
             {
                 if (_certificateCache == null)
@@ -281,6 +291,16 @@ namespace SpaceWizards.HttpListener
                     _certificateCache[port] = certificate;
                 }
             }
+        }
+
+        public void SetPreferedHashAlgorithm(HashAlgorithmName hashAlgorithm)
+        {
+            _hashAlgorithm = hashAlgorithm;
+        }
+
+        public HashAlgorithmName GetPreferedHashAlgorithm()
+        {
+            return _hashAlgorithm;
         }
 
         public void Close()

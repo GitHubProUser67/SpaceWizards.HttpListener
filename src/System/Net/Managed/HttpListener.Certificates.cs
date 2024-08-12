@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Security;
@@ -18,7 +16,7 @@ namespace SpaceWizards.HttpListener
             return new SslStream(innerStream, ownsStream, callback);
         }
 
-        internal X509Certificate? LoadCertificateAndKey(IPAddress addr, int port)
+        internal X509Certificate2? LoadCertificateAndKey(IPAddress addr, int port)
         {
             lock (_internalLock)
             {
