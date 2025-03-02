@@ -197,7 +197,7 @@ namespace SpaceWizards.HttpListener
 
             string base_uri = $"{RequestScheme}://{host}:{LocalEndPoint!.Port}";
 
-            if (!Uri.TryCreate(base_uri + path, UriKind.Absolute, out _requestUri))
+            if (!Uri.TryCreate(base_uri + path, UriKind.Absolute, out _requestUri) || string.IsNullOrEmpty(_rawUrl))
             {
                 _context.ErrorMessage = WebUtility.HtmlEncode("Invalid url: " + base_uri + path);
                 return;
